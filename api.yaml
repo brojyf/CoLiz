@@ -1,0 +1,2376 @@
+openapi: 3.1.0
+info:
+  title: CoList 
+  description: The API file for CoList app
+  version: 1.0.0
+
+servers:
+  - url: 'http://localhost:8080/api'
+    description: development
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    # Non-business types
+    UUIDv4:
+      type: string
+      example: 5c476014-0434-496b-9add-35ecc683564d
+    UUIDv7:
+      type: string
+      example: 019c5ffe-990c-7a3a-be60-08e3acd9004a
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: INTERNAL_SERVER_ERROR
+        message:
+          type: string
+          example: please don't attack my server
+
+    # Business types
+    Name:
+      type: string
+      description: length [1, 32];
+      example: master
+    Email:
+      type: string
+      format: email
+      description: max length is 255
+    Scene:
+      type: string
+      description: signup or reset
+      example: signup
+    Password:
+      type: string
+      description: >
+        length [8, 20]; 
+        contains at least one upper & lower case letter/digit/symbol;
+        no space allowed
+      example: SecretPassword123!
+    OneTimePassword:
+      type: string
+      description: fixed length 6
+      example: 543210
+    RefreshToken:
+      type: string
+      description: length [16, 128]
+      example: v11111111111111.sa0_L-HeTvOLase1Bc2RiKC5VSNQSfX76p0lxPko_ZM
+    Message:
+      type: string
+      description: valid length [1, 64]
+      example: Sample Message length between 1 and 64
+
+    # Objects
+    SetPasswordRequest:
+      type: object 
+      required: [device_id, ticket_id, password]
+      properties:
+        device_id:
+          $ref: "#/components/schemas/UUIDv4"
+        ticket_id:
+          $ref: "#/components/schemas/UUIDv4"
+        password:
+          $ref: "#/components/schemas/Password"
+    UserProfile:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUIDv7"
+        username:
+          $ref: "#/components/schemas/Name"
+        email:
+          $ref: "#/components/schemas/Email"
+        avatar_version:
+          type: integer
+          minimum: 0
+          description: use as the optional `?version=` cache-busting query when fetching `/users/{user_id}/avatar`
+          example: 3
+        friend_since:
+          type: string
+          format: date-time
+        mutual_groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/Group"
+    AuthTokens:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsImtpZCI6InYxIiwidHlwIjoiSldUIn0.
+            eyJ1c2VyX2lkIjoiMDE5YzVlYWQtN2ZkZi03ZGM1LWI1YTItYzc4YjU1YmI
+            5NmFkIiwiZGV2aWNlX2lkIjoiZGV2aWNlaWRfcGF0cmljayIsImlzcyI6Im
+            NvbGlzdCIsInN1YiI6IjAxOWM1ZWFkLTdmZGYtN2RjNS1iNWEyLWM3OGI1N
+            WJiOTZhZCIsImV4cCI6MTc3MTExNjczNCwiaWF0IjoxNzcxMTE1ODM0fQ.M
+            6YhgOLdxjzBaZGZfEZaL0LR1KY1mrdA-htraDewi3U
+        expires_in:
+          type: integer
+          description: int64
+          example: 9000
+        token_type:
+          type: string
+          example: Bearer
+        refresh_token:
+          $ref: "#/components/schemas/RefreshToken"
+    Group:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUIDv7"
+        group_name:
+          $ref: "#/components/schemas/Name"
+        avatar_version:
+          type: integer
+          minimum: 0
+          description: use as the optional `?version=` cache-busting query when fetching `/groups/{group_id}/avatar`
+          example: 2
+        is_owner:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+    GroupDetail:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUIDv7"
+        group_name:
+          $ref: "#/components/schemas/Name"
+        avatar_version:
+          type: integer
+          minimum: 0
+          description: use as the optional `?version=` cache-busting query when fetching `/groups/{group_id}/avatar`
+          example: 2
+        owner_id:
+          $ref: "#/components/schemas/UUIDv7"
+        is_owner:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserProfile" 
+    GroupExpense:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUIDv7"
+        group_name:
+          $ref: "#/components/schemas/Name"
+        avatar_version:
+          type: integer
+          minimum: 0
+          description: use as the optional `?version=` cache-busting query when fetching `/groups/{group_id}/avatar`
+          example: 2
+        lent_amount:
+          type: string
+          description: current net amount others owe the signed-in user in this group
+          example: "18.50"
+        borrow_amount:
+          type: string
+          description: current net amount the signed-in user owes others in this group
+          example: "0.00"
+    TransactionTransfer:
+      type: object
+      properties:
+        from_user_id:
+          $ref: "#/components/schemas/UUIDv7"
+        from_username:
+          $ref: "#/components/schemas/Name"
+        from_avatar_version:
+          type: integer
+          minimum: 0
+        to_user_id:
+          $ref: "#/components/schemas/UUIDv7"
+        to_username:
+          $ref: "#/components/schemas/Name"
+        to_avatar_version:
+          type: integer
+          minimum: 0
+        amount:
+          type: string
+          example: "12.50"
+    GroupTransactionPlan:
+      type: object
+      properties:
+        group_id:
+          $ref: "#/components/schemas/UUIDv7"
+        group_name:
+          $ref: "#/components/schemas/Name"
+        group_avatar_version:
+          type: integer
+          minimum: 0
+        transfers:
+          type: array
+          items:
+            $ref: "#/components/schemas/TransactionTransfer"
+    ExpenseParticipantInput:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          $ref: "#/components/schemas/UUIDv7"
+        fixed_amount:
+          type: string
+          example: "28.50"
+    CreateExpenseRequest:
+      type: object
+      required: [name, amount, paid_by, split_method, participants]
+      properties:
+        name:
+          $ref: "#/components/schemas/Name"
+        amount:
+          type: string
+          example: "84.50"
+        paid_by:
+          $ref: "#/components/schemas/UUIDv7"
+        split_method:
+          type: string
+          enum: ["equal", "fixed"]
+        note:
+          type: string
+          maxLength: 255
+        occurred_at:
+          type: string
+          format: date-time
+          description: expense datetime in UTC RFC3339 format
+        participants:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ExpenseParticipantInput"
+    ExpenseParticipant:
+      type: object
+      properties:
+        user_id:
+          $ref: "#/components/schemas/UUIDv7"
+        amount:
+          type: string
+          example: "28.17"
+        fixed_amount:
+          type: string
+          example: "28.50"
+    ExpenseDetail:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUIDv7"
+        group_id:
+          $ref: "#/components/schemas/UUIDv7"
+        name:
+          $ref: "#/components/schemas/Name"
+        amount:
+          type: string
+          example: "84.50"
+        paid_by:
+          $ref: "#/components/schemas/UUIDv7"
+        split_method:
+          type: string
+          enum: ["equal", "percentage", "fixed"]
+        note:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+          description: expense datetime in UTC RFC3339 format
+        created_by:
+          $ref: "#/components/schemas/UUIDv7"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseParticipant"
+    ExpenseHistoryItem:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUIDv7"
+        name:
+          $ref: "#/components/schemas/Name"
+        category:
+          type: string
+          example: groceries
+        category_symbol:
+          type: string
+          example: cart.fill
+        amount:
+          type: string
+          example: "84.50"
+        lent_amount:
+          type: string
+          example: "18.50"
+        borrow_amount:
+          type: string
+          example: "0.00"
+        paid_by:
+          $ref: "#/components/schemas/UUIDv7"
+        paid_by_name:
+          $ref: "#/components/schemas/Name"
+        paid_by_avatar_version:
+          type: integer
+          minimum: 0
+        created_by:
+          $ref: "#/components/schemas/UUIDv7"
+        occurred_at:
+          type: string
+          format: date-time
+          description: expense datetime in UTC RFC3339 format
+        created_at:
+          type: string
+          format: date-time
+    Todo:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUIDv7"
+        group_id:
+          $ref: "#/components/schemas/UUIDv7"
+        message:
+          $ref: "#/components/schemas/Message"
+        done:
+          type: boolean
+        created_by:
+          $ref: "#/components/schemas/UUIDv7"
+        created_by_name:
+          type: string
+          example: alex
+        updated_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    FriendRequest: 
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUIDv7"
+        from:
+          $ref: "#/components/schemas/UUIDv7"
+        from_username:
+          type: string
+          example: alex
+        from_avatar_version:
+          type: integer
+          format: uint32
+          example: 3
+        to:
+          $ref: "#/components/schemas/UUIDv7"
+        to_username:
+          type: string
+          example: pat
+        to_avatar_version:
+          type: integer
+          format: uint32
+          example: 1
+        msg:
+          $ref: "#/components/schemas/Message"
+        status:
+          type: string
+          enum: ["pending", "rejected"]
+          example: pending
+        created_at:
+          type: string
+          format: date-time
+        direction:
+          type: string
+          enum: ["sent", "received"]
+          example: sent
+
+security:
+  - BearerAuth: []
+
+paths:
+  /ping:
+    get:
+      security: []
+      responses:
+        "200":
+          description: pong json string
+          content:
+            application/json:
+              schema:
+                type: string
+              example: pong
+
+  /auth/request-otp:
+    post:
+      security: []
+      summary: request otp using email and scene
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: 
+              type: object
+              required: [email, scene]
+              properties:
+                email:
+                  $ref: "#/components/schemas/Email"
+                scene:
+                  $ref: "#/components/schemas/Scene"
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code_id:
+                    $ref: "#/components/schemas/UUIDv4"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '429':
+          description: throttled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /auth/verify-otp:
+    post:
+      security: []
+      summary: verify the one time password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, scene, otp, code_id, device_id]
+              properties:
+                email:
+                  $ref: "#/components/schemas/Email"
+                scene:
+                  $ref: "#/components/schemas/Scene"
+                otp:
+                  $ref: "#/components/schemas/OneTimePassword"
+                code_id:
+                  $ref: "#/components/schemas/UUIDv4"
+                device_id:
+                  $ref: "#/components/schemas/UUIDv4"
+      responses:
+        '200':
+          description: verify successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticket_id:
+                    $ref: "#/components/schemas/UUIDv4"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '429':
+          description: throttled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /auth/register:
+    post:
+      security: []
+      summary: register account and create session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPasswordRequest"
+      responses:
+        '201':
+          description: account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: account already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '429':
+          description: throttled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /auth/reset-password:
+    post:
+      security: []
+      summary: reset the password and create the session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPasswordRequest"
+      responses:
+        '200':
+          description: account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '429':
+          description: throttled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /auth/login:
+    post:
+      security: []
+      summary: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, device_id]
+              properties:
+                email:
+                  $ref: "#/components/schemas/Email"
+                password:
+                  $ref: "#/components/schemas/Password"
+                device_id:
+                  $ref: "#/components/schemas/UUIDv4"
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '429':
+          description: throttled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /auth/logout:
+    post:
+      summary: logout current session
+      responses:
+        '204':
+          description: logout successfully
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /auth/refresh:  
+    post:
+      security: []
+      summary: refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token, device_id]
+              properties:
+                refresh_token:
+                  $ref: "#/components/schemas/RefreshToken"
+                device_id:
+                  $ref: "#/components/schemas/UUIDv4"
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '429':
+          description: throttled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /auth/change-password:
+    post:
+      summary: change the current signed-in user's password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [old, new]
+              properties:
+                old:
+                  $ref: "#/components/schemas/Password"
+                new:
+                  $ref: "#/components/schemas/Password"
+      responses:
+        '200':
+          description: password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /users/{user_id}/avatar:
+    get:
+      security: []
+      summary: get a specific user's avatar image
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+        - name: version
+          in: query
+          required: false
+          description: optional cache-busting token; clients can pass the current `avatar_version`
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: avatar image returned successfully
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /users/me:
+    get:
+      summary: get the current signed-in user's profile
+      responses:
+        '200':
+          description: profile fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    patch:
+      summary: update the current signed-in user's username
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username:
+                  $ref: "#/components/schemas/Name"
+      responses:
+        '200':
+          description: username updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /users/me/avatar:
+    put:
+      summary: upload and replace the current signed-in user's avatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: avatar updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /users/search:
+    get:
+      summary: search users by email
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Email"
+      responses:
+        '200':
+          description: users found successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /friends:
+    get:
+      summary: get all current user's friends
+      responses:
+        '200':
+          description: friends fetched successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserProfile"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /friends/{uid}:
+    get:
+      summary: get a current user's friend detail
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: friend detail fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized or not friends
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: friend user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    delete:
+      summary: delete a current user's friend
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '204':
+          description: friend deleted successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: friend delete rejected by the current relationship state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /friend-requests:
+    get:
+      summary: get visible non-expired pending or rejected friend requests
+      description: returns non-expired requests for the current user where `status` is `pending` or `rejected`; accepted requests are not included in this list
+      responses:
+        '200':
+          description: non-expired friend requests found successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FriendRequest"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    post:
+      summary: send a friend request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to, msg]
+              properties:
+                to:
+                  $ref: "#/components/schemas/UUIDv7"
+                msg:
+                  $ref: "#/components/schemas/Message"
+      responses:
+        '201':
+          description: friend request sent successfully
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: target user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: already friends or a pending request already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /friend-requests/{request_id}/accept:
+    post:
+      summary: accept a friend request
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: friend request accepted successfully
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: friend request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: friend request already processed or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout     
+
+  /friend-requests/{request_id}/decline:
+    post:
+      summary: decline a friend request
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: friend request declined successfully
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: friend request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: friend request already processed or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout     
+
+  /friend-requests/{request_id}/cancel:
+    post:
+      summary: cancel a sent friend request
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: friend request canceled successfully
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized or not the sender
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: friend request not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: friend request already processed or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout     
+
+  /groups:
+    get:
+      summary: get all groups joined by the current user
+      responses:
+        '200':
+          description: groups fetched successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Group"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    post:
+      summary: create a group with a given name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                group_name:
+                  $ref: "#/components/schemas/Name"
+      responses:
+        '201':
+          description: group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: group already exists for this owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}:
+    get:
+      summary: get a group's detail with members
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: group detail fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupDetail"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized or not a group member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    patch:
+      summary: update a group's name
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [group_name]
+              properties:
+                group_name:
+                  $ref: "#/components/schemas/Name"
+      responses:
+        '200':
+          description: group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized or not a group member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    delete:
+      summary: delete a group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '204':
+          description: group deleted successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: group has outstanding balances
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}/members:
+    get:
+      summary: get all members in a group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: group members fetched successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserProfile"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized or not a group member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}/members/{uid}:
+    delete:
+      summary: remove a member from a group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+        - name: uid
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '204':
+          description: member removed successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: member not found in group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: member cannot be removed in the current state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}/invite:
+    post:
+      summary: invite a friend into a group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: user invited successfully
+          content:
+            application/json:
+              schema:
+                type: 'null'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized or inviter is not a group member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group or invited user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: invite conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}/leave:
+    post:
+      summary: leave a group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '204':
+          description: left group successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: member cannot leave in the current state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}/balance:
+    get:
+      summary: get current user's balance summary in one group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: group balance fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupExpense"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}/transaction:
+    post:
+      summary: create a transaction expense in a group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, paid_by, participants]
+              properties:
+                amount:
+                  type: string
+                  example: "12.50"
+                paid_by:
+                  $ref: "#/components/schemas/UUIDv7"
+                note:
+                  type: string
+                occurred_at:
+                  type: string
+                  format: date-time
+                  description: transaction datetime in UTC RFC3339 format
+                participants:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [user_id, fixed_amount]
+                    properties:
+                      user_id:
+                        $ref: "#/components/schemas/UUIDv7"
+                      fixed_amount:
+                        type: string
+                        example: "12.50"
+      responses:
+        '201':
+          description: transaction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseDetail"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}/transactions/plan:
+    get:
+      summary: generate the minimal transfer plan that settles a whole group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: group transaction plan generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupTransactionPlan"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}/transactions/apply:
+    post:
+      summary: write the full group transaction plan into the ledger
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '201':
+          description: group transaction plan applied successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupTransactionPlan"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}/avatar:
+    get:
+      security: []
+      summary: get a group's public avatar image
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+        - name: version
+          in: query
+          required: false
+          description: optional cache-busting token; clients can pass the current `avatar_version`
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: avatar image returned successfully
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    put:
+      summary: upload and replace a group's avatar
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: avatar updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized or not a group member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /todos:
+    get:
+      summary: get all todos regardless groups
+      responses:
+        '200':
+          description: get todos successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Todo"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /groups/{group_id}/todos:
+    get:
+      summary: get all todos for one group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: get group todos successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Todo"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    post:
+      summary: create a todo in a group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  $ref: "#/components/schemas/Message"
+      responses:
+        '201':
+          description: todo created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /todos/{todo_id}:
+    patch:
+      summary: update a todo message
+      parameters:
+        - name: todo_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  $ref: "#/components/schemas/Message"
+      responses:
+        '200':
+          description: todo updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: todo not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    delete:
+      summary: delete a todo
+      parameters:
+        - name: todo_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '204':
+          description: todo deleted successfully
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /todos/{todo_id}/mark:
+    patch:
+      summary: mark a todo as done or undone
+      parameters:
+        - name: todo_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                done:
+                  type: boolean
+      responses:
+        '200':
+          description: todo marked successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: todo not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /expenses:
+    get:
+      summary: get all expenses
+      responses:
+        '200':
+          description: expenses fetched successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupExpense"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+  
+  /groups/{group_id}/expenses:
+    get:
+      summary: get expense history for one group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: expense history fetched successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExpenseHistoryItem"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    post:
+      summary: create one expense in a group
+      parameters:
+        - name: group_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExpenseRequest"
+      responses:
+        '201':
+          description: expense created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseDetail"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: group not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+
+  /expenses/{expense_id}:
+    get:
+      summary: get one expense detail
+      parameters:
+        - name: expense_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '200':
+          description: expense detail fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseDetail"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: expense not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    patch:
+      summary: update one expense
+      parameters:
+        - name: expense_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExpenseRequest"
+      responses:
+        '200':
+          description: expense updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseDetail"
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: expense not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout
+    delete:
+      summary: delete one expense
+      parameters:
+        - name: expense_id
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/UUIDv7"
+      responses:
+        '204':
+          description: expense deleted successfully
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '404':
+          description: expense not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '409':
+          description: conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        '500':
+          description: internal server error
+        '504':
+          description: gateway timeout

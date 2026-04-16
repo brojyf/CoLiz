@@ -1,0 +1,7 @@
+prod.env
+dev.env
+runtime/
+storage/data/
+bin/
+*.pid
+*.log

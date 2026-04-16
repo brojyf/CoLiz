@@ -1,0 +1,9 @@
+*.env
+.gocache
+*.p8
+
+# Avatar storage
+/storage/*
+!/storage/avatars/
+/storage/avatars/*
+!/storage/avatars/default.svg
